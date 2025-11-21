@@ -1,0 +1,2 @@
+pip install python-telegram-bot==13.15 requests
+pip install flask requests beautifulsoup4
