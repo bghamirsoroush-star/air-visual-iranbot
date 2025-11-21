@@ -1,45 +1,44 @@
-# telegram_bot.py
-# -----------------------
-from telegram.ext import Updater, CommandHandler
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
 import requests
 
-TOKEN = "PUT-YOUR-TELEGRAM-BOT-TOKEN-HERE"   # ← توکن ربات
-API_URL = "https://YOUR-REPLIT-APP-URL/aqi"  # ← لینک API که ساختی
+TOKEN = "PUT-YOUR-BOT-TOKEN"
+API_URL = "https://YOUR-SERVER-IP:5000/aqi"   # لینک API خودت
 
-def start(update, context):
-    update.message.reply_text("سلام! برای گرفتن شاخص آلودگی هوای تهران بنویس /aqi")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("سلام! برای دریافت شاخص آلودگی هوا دستور /aqi را بزن.")
 
-def get_aqi(update, context):
+async def get_aqi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        r = requests.get(API_URL)
+        r = requests.get(API_URL, timeout=10)
         data = r.json()
 
-        if "error" in data:
-            update.message.reply_text("❌ خطا در دریافت اطلاعات")
-            return
+        now = data.get("now", {})
+        daily = data.get("daily", {})
 
-        aqi = data["aqi"]
-        status = data["status"]
-
-        msg = f"""
+        text = f"""
 📍 *شاخص کیفیت هوای تهران*
-AQI: *{aqi}*
-وضعیت: *{status}*
-        """
-        update.message.reply_text(msg, parse_mode="Markdown")
+
+🌬 شاخص لحظه‌ای: *{now.get('aqi')}*
+📌 وضعیت: {now.get('status')}
+
+🕒 شاخص ۲۴ ساعته: *{daily.get('aqi')}*
+📌 وضعیت ۲۴ ساعته: {daily.get('status')}
+"""
+        await update.message.reply_text(text, parse_mode="Markdown")
 
     except Exception as e:
-        update.message.reply_text("❌ خطا در اتصال به سرور")
+        await update.message.reply_text("❌ خطا در دریافت اطلاعات از سرور")
 
-def main():
-    updater = Updater(TOKEN, use_context=True)
-    dp = updater.dispatcher
+async def main():
+    app = Application.builder().token(TOKEN).build()
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("aqi", get_aqi))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("aqi", get_aqi))
 
-    updater.start_polling()
-    updater.idle()
+    print("Bot running...")
+    await app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
